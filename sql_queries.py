@@ -37,28 +37,6 @@ time_table_drop = """
 
 # CREATE TABLES
 
-staging_events_table_create= ("""
-    CREATE TABLE IF NOT EXISTS staging_events (
-        artist        varchar,
-        auth          varchar,
-        firstName     text,
-        gender         char,
-        itemInSession integer,
-        lastName      text,
-        length        numeric,
-        level         text,
-        location      varchar,
-        method        varchar,
-        page          text,
-        registration  varchar,
-        sessionId     integer NOT NULL SORTKEY DISTKEY,
-        song          varchar,
-        status        integer,
-        ts            timestamp NOT NULL,
-        userAgent     varchar,
-        userId        integer 
- )
-""")
 
 staging_songs_table_create = ("""
  CREATE TABLE IF NOT EXISTS staging_songs (
@@ -75,33 +53,47 @@ staging_songs_table_create = ("""
     );
 """)
 
+staging_events_table_create= ("""
+    CREATE TABLE IF NOT EXISTS staging_events (
+        artist        varchar,
+        auth          varchar NOT NULL,
+        firstName     text,
+        gender         char,
+        itemInSession integer NOT NULL,
+        lastName      text,
+        length        numeric,
+        level         text NOT NULL,
+        location      varchar,
+        method        varchar NOT NULL,
+        page          text,
+        registration  numeric,
+        sessionId     integer NOT NULL SORTKEY DISTKEY,
+        song          varchar,
+        status        integer NOT NULL,
+        ts            timestamp NOT NULL,
+        userAgent     varchar,
+        userId        integer 
+ )
+""")
+
 songplay_table_create = ("""
     CREATE TABLE IF NOT EXISTS songplays (
-        songplay_id int IDENTITY(0,1) NOT NULL, 
-        start_time  timestamp         NOT NULL SORTKEY, 
+        songplay_id int IDENTITY(0,1) NOT NULL PRIMARY KEY , 
+        start_time  timestamp         NOT NULL SORTKEY DISTKEY, 
         user_id     int               NOT NULL, 
         level       text              NOT NULL, 
-        song_id     varchar           DISTKEY,
+        song_id     varchar,
         artist_id   varchar, 
         session_id  int               NOT NULL, 
         location    varchar, 
-        user_agent  varchar
-    );
-""")
-
-user_table_create = ("""
-    CREATE TABLE IF NOT EXISTS users ( 
-        user_id    int  NOT NULL, 
-        first_name text, 
-        last_name  text SORTKEY, 
-        gender     char, 
-        level      text NOT NULL
-    ) diststyle all;
+        user_agent  varchar           NOT NULL
+    )
+    DISTSTYLE KEY;
 """)
 
 song_table_create = ("""
     CREATE TABLE IF NOT EXISTS songs ( 
-        song_id   varchar NOT NULL DISTKEY, 
+        song_id   varchar NOT NULL DISTKEY PRIMARY KEY, 
         title     varchar NOT NULL,
         artist_id varchar, 
         year      int     SORTKEY, 
@@ -109,25 +101,35 @@ song_table_create = ("""
     );
 """)
 
-artist_table_create = ("""
-    CREATE TABLE IF NOT EXISTS artists ( 
-        artist_id varchar NOT NULL, 
-        name      varchar NOT NULL SORTKEY, 
-        location  text, 
-        latitude  numeric, 
-        longitude numeric
+user_table_create = ("""
+    CREATE TABLE IF NOT EXISTS users ( 
+        user_id    int  NOT NULL PRIMARY KEY, 
+        first_name text, 
+        last_name  text SORTKEY, 
+        gender     char, 
+        level      text NOT NULL
     ) diststyle all;
 """)
 
 time_table_create = ("""
     CREATE TABLE IF NOT EXISTS time ( 
-        start_time timestamp NOT NULL SORTKEY, 
+        start_time timestamp NOT NULL SORTKEY PRIMARY KEY, 
         hour       int       NOT NULL, 
         day        int       NOT NULL, 
         week       int       NOT NULL, 
         month      int       NOT NULL,
         year       int       NOT NULL, 
         weekday    int       NOT NULL
+    ) diststyle all;
+""")
+
+artist_table_create = ("""
+    CREATE TABLE IF NOT EXISTS artists ( 
+        artist_id varchar NOT NULL PRIMARY KEY, 
+        name      varchar NOT NULL SORTKEY, 
+        location  text, 
+        latitude  numeric, 
+        longitude numeric
     ) diststyle all;
 """)
 
@@ -171,25 +173,25 @@ user_table_insert = ("""
 song_table_insert = ("""
     INSERT INTO songs (song_id, artist_id, title, year, duration)
         SELECT DISTINCT song_id, artist_id, title, year, duration
-        FROM staging_songs;
+        FROM staging_songs
+        where song_id IS NOT NULL;
 """)
 
 artist_table_insert = ("""
     INSERT INTO artists (artist_id, name, location, latitude, longitude)
         SELECT DISTINCT artist_id, artist_name, artist_location, artist_latitude, artist_longitude
         FROM staging_songs
-        WHERE artist_id NOT IN (SELECT DISTINCT artist_id FROM artists);
 """)
 
 time_table_insert = ("""
     INSERT INTO time (start_time, hour, day, week, month, weekday, year)
         SELECT DISTINCT ts, 
-                        EXTRACT(hour FROM ts),
-                        EXTRACT(day FROM ts),
-                        EXTRACT(week FROM ts),
-                        EXTRACT(month FROM ts),
-                        EXTRACT(weekday FROM ts),
-                        EXTRACT(year FROM ts)
+                        EXTRACT(hour FROM ts) AS hour,
+                        EXTRACT(day FROM ts) AS day,
+                        EXTRACT(week FROM ts) AS week,
+                        EXTRACT(month FROM ts) AS month,
+                        EXTRACT(weekday FROM ts) as weekday,
+                        EXTRACT(year FROM ts) as year
         FROM staging_events
         WHERE page = 'NextSong'
 """)

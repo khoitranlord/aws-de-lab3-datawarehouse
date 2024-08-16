@@ -27,7 +27,7 @@ def main():
     cur = conn.cursor()
     print("AWS Reshift connection established OK")
 
-    # load_staging_tables(cur, conn)
+    load_staging_tables(cur, conn)
     insert_tables(cur, conn)
 
     conn.close()
